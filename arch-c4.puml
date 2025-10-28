@@ -1,0 +1,70 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_TOP_DOWN()
+
+title PDF Scanner Service - Container Diagram
+
+' External actors
+Person(user, "User", "Submits PDF documents and free-form price queries")
+
+System_Boundary(system, "PDF Scanner Service") {
+    
+    Container(api, "API Gateway", "FastAPI", "Entry point for all user interactions, handles PDF uploads and queries")
+    
+    Container_Boundary(config_path, "Configuration-Driven Path", "Ground Truth / Quality Baseline") {
+        Container(pdf_extract, "PDF Table Extractor", "pdfplumber", "Extracts structured tables from PDF with exact column/row parsing")
+        Container(normalize, "Normalizer", "Python", "Converts tables to service/zone/weight/price schema")
+        ContainerDb(pandas_index, "Pandas Index", "in-memory DataFrame", "Structured index for exact matching")
+        Container(price_lookup, "Price Lookup", "regex + pandas query", "Returns price via exact match on structured params")
+    }
+    
+    Container_Boundary(llm_path, "LLM + RAG Path", "Production - Semantic & Flexible") {
+        Container(pdf_reader, "PDF Parser", "LangChain PDF Reader / Unstructured", "Extracts text, tables, optional summaries as chunks")
+        ContainerDb(vector_store, "Vector Store", "FAISS (local)", "Stores chunk embeddings with metadata")
+        Container(query_parser, "Query Parser", "LLM structured output / regex", "Extracts structured params or passes raw query")
+        Container(retriever, "Retriever", "Semantic search", "Finds relevant chunks via vector similarity")
+        Container(llm_evaluator, "LLM Evaluator", "LLM + prompt", "Extracts single price from context, enforces numeric output")
+        Container(eval_loop, "Evaluation Loop", "Max k retries", "Ensures single number result, iterates if hallucination detected")
+    }
+    
+    Container_Boundary(eval_framework, "Evaluation Framework", "Post-hoc quality metrics (optional for MVP)") {
+        Container(metrics_calc, "Metrics Calculator", "Python", "Compares LLM output vs config-driven ground truth")
+    }
+}
+
+System_Ext(openai_api, "OpenAI API", "Embeddings (ADA) and LLM inference")
+System_Ext(voyage_api, "Voyage AI", "Alternative embedding API (if provided)")
+
+Rel(user, api, "Uploads PDF / Submits query")
+Rel_Back(api, user, "Returns price / results")
+
+Rel(api, pdf_extract, "Routes PDF upload")
+Rel(pdf_extract, normalize, "Raw table data")
+Rel(normalize, pandas_index, "Normalized schema")
+Rel(api, price_lookup, "Routes structured query")
+Rel(price_lookup, pandas_index, "Exact lookup")
+Rel(price_lookup, api, "Returns price (100% accuracy)")
+
+Rel(api, pdf_reader, "Routes PDF upload")
+Rel(pdf_reader, vector_store, "Chunks + metadata")
+Rel(vector_store, openai_api, "Calls for embeddings")
+Rel_Back(openai_api, vector_store, "Returns embeddings")
+Rel(vector_store, voyage_api, "Alternative: Voyage embeddings", "optional")
+Rel_Back(voyage_api, vector_store, "Returns embeddings", "optional")
+
+Rel(api, query_parser, "Routes free-form query")
+Rel(query_parser, retriever, "Parsed or raw query")
+Rel(retriever, vector_store, "Semantic search (top-k)")
+Rel(vector_store, retriever, "Returns relevant chunks")
+Rel(retriever, llm_evaluator, "Context + query")
+Rel(llm_evaluator, openai_api, "LLM inference")
+Rel_Back(openai_api, llm_evaluator, "Extracted price")
+Rel(llm_evaluator, eval_loop, "Validates output")
+Rel(eval_loop, llm_evaluator, "Retry if invalid", "max k times")
+Rel(eval_loop, api, "Returns final price")
+
+Rel(price_lookup, metrics_calc, "Ground truth output", "for evaluation")
+Rel(eval_loop, metrics_calc, "LLM output", "for evaluation")
+
+@enduml
