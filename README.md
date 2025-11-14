@@ -1,5 +1,21 @@
 # AI PDF Scanner Service
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Solution Architech](#solution-architech)
+  - [Annotation](#annotation)
+  - [Diagram](#diagram)
+  - [Description](#description)
+    - [API Gateway](#api-gateway)
+    - [1. **Configuration-Driven Path**](#1-configuration-driven-path)
+    - [2. **LLM + RAG Path**](#2-llm--rag-path)
+    - [3. **Evaluation Framework** (optional metrics module)](#3-evaluation-framework-optional-metrics-module)
+- [Initial Challenge Description](#initial-challenge-description)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Solution Architech
 
 ## Annotation
